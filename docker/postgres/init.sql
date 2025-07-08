@@ -17,8 +17,9 @@ CREATE TABLE backtest_results (
     end_date DATE NOT NULL,
     short_window INT NOT NULL,
     long_window INT NOT NULL,
-    sharpe_ratio FLOAT NOT NULL,
-    trade_count INT NOT NULL,
-    final_portfolio_value NUMERIC(15, 4) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    sharpe_ratio FLOAT,
+    trade_count INT,
+    final_portfolio_value NUMERIC(15, 4),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
