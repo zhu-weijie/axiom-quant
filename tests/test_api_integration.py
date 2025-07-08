@@ -25,9 +25,18 @@ def db_engine() -> Engine:
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_test_database(db_engine: Engine):
+    sql_file_path = os.path.join(
+        os.path.dirname(__file__), "..", "docker", "postgres", "init.sql"
+    )
+    with open(sql_file_path, "r") as f:
+        sql_commands = f.read()
+
     with db_engine.connect() as connection:
-        connection.execute(text("DELETE FROM backtest_results;"))
-        connection.execute(text("DELETE FROM historical_market_data;"))
+        print("Resetting database schema...")
+        connection.execute(text("DROP TABLE IF EXISTS backtest_results;"))
+        connection.execute(text("DROP TABLE IF EXISTS historical_market_data;"))
+
+        connection.execute(text(sql_commands))
         connection.commit()
 
     print("Setting up test database...")
