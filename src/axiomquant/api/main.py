@@ -57,10 +57,15 @@ def run_backtest(request: BacktestRequest):
         short_window=request.short_window, long_window=request.long_window
     )
 
-    daily_returns = bt.portfolio["total"].pct_change().dropna()
-    sharpe = calculate_sharpe_ratio(daily_returns)
-    final_value = bt.portfolio["total"].iloc[-1]
-    trade_count = len(bt.trades)
+    if bt.portfolio.empty or bt.portfolio["total"].iloc[-1] is None:
+        sharpe = 0.0
+        final_value = 100000.0
+        trade_count = 0
+    else:
+        daily_returns = bt.portfolio["total"].pct_change().dropna()
+        sharpe = float(calculate_sharpe_ratio(daily_returns))
+        final_value = float(bt.portfolio["total"].iloc[-1])
+        trade_count = int(len(bt.trades))
 
     engine = get_db_engine()
     insert_query = text(
