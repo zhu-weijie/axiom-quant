@@ -67,3 +67,16 @@ class Backtester:
         ).cumsum().fillna(0)
         portfolio["total"] = portfolio["cash"] + portfolio["holdings"]
         self.portfolio = portfolio
+
+
+# if __name__ == "__main__":
+#     print("Running backtester as a standalone script...")
+
+#     bt = Backtester("AAPL", "2024-01-01", "2024-12-31")
+
+#     bt.run_sma_crossover_strategy(short_window=50, long_window=100)
+
+#     print("--- Trades ---")
+#     print(bt.trades)
+#     print("\n--- Portfolio ---")
+#     print(bt.portfolio.tail())
