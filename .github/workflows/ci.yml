@@ -17,8 +17,6 @@ jobs:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
           POSTGRES_DB: axiom_quant_dev
-        volumes:
-          - ${{ github.workspace }}/docker/postgres:/docker-entrypoint-initdb.d:ro
         ports:
           - 5432:5432
         options: >-
@@ -28,9 +26,6 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Fix Workspace Permissions
-        run: sudo chown -R $USER:$USER ${{ github.workspace }}
-
       - name: Check out repository
         uses: actions/checkout@v4
 
@@ -45,15 +40,32 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Check formatting with Black
-        run: black --check .
+      - name: Check formatting and linting
+        run: |
+          black --check .
+          ruff check .
 
-      - name: Lint with Ruff
-        run: ruff check .
-
-      - name: Run tests with pytest
+      - name: Run API Server in Background
         env:
+          POSTGRES_HOST: localhost
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
           POSTGRES_DB: axiom_quant_dev
+        run: uvicorn axiomquant.api.main:app --host 0.0.0.0 --port 8000 &
+
+      - name: Wait for API server to be ready
+        run: |
+          echo "Waiting for API..."
+          timeout=30
+          while ! curl -s --fail "http://localhost:8000/health"; do
+            sleep 1
+            timeout=$((timeout-1))
+            if [ $timeout -le 0 ]; then
+              echo "Error: API server did not start in time."
+              exit 1
+            fi
+          done
+          echo "API server is ready."
+
+      - name: Run tests with pytest
         run: pytest
