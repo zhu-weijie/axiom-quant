@@ -1,18 +1,21 @@
 import os
 
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL, Engine
+
+load_dotenv()
 
 
 def get_db_engine() -> Engine:
     db_url = URL.create(
         drivername="postgresql+psycopg2",
-        username=os.environ.get("POSTGRES_USER", "admin"),
-        password=os.environ.get("POSTGRES_PASSWORD", "password"),
-        host=os.environ.get("POSTGRES_HOST", "db"),
-        port=int(os.environ.get("POSTGRES_PORT", 5432)),
-        database=os.environ.get("POSTGRES_DB", "axiom_quant_dev"),
+        username=os.environ.get("POSTGRES_USER"),
+        password=os.environ.get("POSTGRES_PASSWORD"),
+        host=os.environ.get("POSTGRES_HOST"),
+        port=int(os.environ.get("POSTGRES_PORT")),
+        database=os.environ.get("POSTGRES_DB"),
     )
     return create_engine(db_url)
 

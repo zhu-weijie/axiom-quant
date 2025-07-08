@@ -14,9 +14,9 @@ jobs:
       db:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: axiom_quant_dev
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -45,12 +45,15 @@ jobs:
           black --check .
           ruff check .
 
+      - name: Set up environment
+        run: |
+          echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+          echo "POSTGRES_USER=testuser" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=testpassword" >> $GITHUB_ENV
+          echo "POSTGRES_DB=testdb" >> $GITHUB_ENV
+          echo "POSTGRES_PORT=5432" >> $GITHUB_ENV
+
       - name: Run API Server in Background
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: axiom_quant_dev
         run: uvicorn axiomquant.api.main:app --host 0.0.0.0 --port 8000 &
 
       - name: Wait for API server to be ready
