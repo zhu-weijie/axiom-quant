@@ -1,4 +1,5 @@
 import os
+import time
 
 import httpx
 import pandas as pd
@@ -81,17 +82,25 @@ def test_backtest_endpoint_and_get_results():
 
     with httpx.Client() as client:
         response = client.post(f"{API_URL}/backtest", json=backtest_payload, timeout=30)
+        assert response.status_code == 202
 
-    assert response.status_code == 200
-    response_data = response.json()
-    assert "run_id" in response_data
-    run_id = response_data["run_id"]
+        response_data = response.json()
+        assert "run_id" in response_data
+        run_id = response_data["run_id"]
 
     with httpx.Client() as client:
-        get_response = client.get(f"{API_URL}/results/{run_id}")
+        for _ in range(10):
+            get_response = client.get(f"{API_URL}/results/{run_id}")
+            if get_response.json()["status"] == "COMPLETED":
+                break
+            time.sleep(1)
+        else:
+            pytest.fail("Backtest did not complete in time.")
 
     assert get_response.status_code == 200
     get_data = get_response.json()
     assert get_data["id"] == run_id
+    assert get_data["status"] == "COMPLETED"
     assert get_data["ticker"] == "TEST"
     assert get_data["trade_count"] > 0
+    assert get_data["final_portfolio_value"] is not None
