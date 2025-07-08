@@ -17,6 +17,8 @@ jobs:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
           POSTGRES_DB: axiom_quant_dev
+        volumes:
+          - ${{ github.workspace }}/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
         ports:
           - 5432:5432
         options: >-
