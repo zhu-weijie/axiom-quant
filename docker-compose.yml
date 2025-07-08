@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: axiom_quant_db
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=axiom_quant_dev
+    volumes:
+      - axiom_quant_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    container_name: axiom_quant_app
+    build:
+      context: .
+      dockerfile: docker/python/Dockerfile
+    depends_on:
+      - db
+    command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  axiom_quant_db_data:
