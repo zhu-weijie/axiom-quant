@@ -149,3 +149,152 @@ docker compose up -d
 # Run the test suite
 pytest
 ```
+
+## Design Diagrams
+
+### C4 Component Diagram
+
+```mermaid
+C4Component
+    title Component Diagram for AxiomQuant System (Top-Down Flow)
+
+    Person(user, "Quantitative Analyst", "Runs and analyzes trading strategies.")
+
+    System_Ext(yf, "Yahoo Finance", "External data provider for the CLI data loader.")
+
+    System_Boundary(c1, "AxiomQuant System") {
+        Component(api, "API Layer", "FastAPI / Uvicorn", "Handles all incoming client requests, validates input, and manages background tasks.")
+        Component(worker, "Core Logic", "Python Modules", "Performs data loading, analytics, and the actual strategy simulation.")
+        ComponentDb(db, "Database", "PostgreSQL", "Stores all market data and backtest parameters/results.")
+    }
+    
+    Rel_Down(user, api, "Makes API calls", "HTTPS/JSON")
+    Rel_Down(api, worker, "Delegates backtest job to", "FastAPI BackgroundTasks")
+    
+    %% The API writes the initial PENDING status, but the worker does the main R/W operations
+    Rel(worker, db, "Reads market data, Writes final results", "SQLAlchemy")
+    Rel_Back(api, db, "Writes initial PENTING status & reads results for user", "SQLAlchemy")
+```
+
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    historical_market_data {
+        SERIAL id PK
+        VARCHAR ticker
+        DATE trade_date
+        NUMERIC open_price
+        NUMERIC high_price
+        NUMERIC low_price
+        NUMERIC close_price
+        BIGINT volume
+    }
+
+    backtest_results {
+        SERIAL id PK
+        VARCHAR ticker
+        DATE start_date
+        DATE end_date
+        INT short_window
+        INT long_window
+        VARCHAR status
+        FLOAT sharpe_ratio
+        INT trade_count
+        NUMERIC final_portfolio_value
+        TIMESTAMP created_at
+    }
+
+    backtest_results }|--o{ historical_market_data : "uses"
+```
+
+### Triggering an Asynchronous Backtest
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant API
+    participant BackgroundTasks
+    participant Database
+
+    User->>+API: POST /backtest (ticker, dates)
+    API->>+Database: INSERT new run (status='PENDING')
+    Database-->>-API: Returns new run_id
+    API-->>-User: 202 Accepted (run_id)
+
+    API->>BackgroundTasks: run_backtest_in_background(run_id)
+    activate BackgroundTasks
+    
+    BackgroundTasks->>+Database: SELECT market_data
+    Database-->>-BackgroundTasks: Returns DataFrame
+    
+    BackgroundTasks->>BackgroundTasks: Perform backtest calculations...
+    
+    BackgroundTasks->>+Database: UPDATE run SET status='COMPLETED', results=...
+    Database-->>-BackgroundTasks: OK
+    deactivate BackgroundTasks
+    
+    loop Poll for result
+        User->>+API: GET /results/{run_id}
+        API->>+Database: SELECT * FROM backtest_results WHERE id=run_id
+        Database-->>-API: Returns result (status, metrics)
+        API-->>-User: 200 OK (result JSON)
+    end
+```
+
+### Class Diagram
+
+```mermaid
+classDiagram
+    direction LR
+
+    class FastAPI {
+        <<Application>>
+        +create_backtest(request)
+        +get_result(run_id)
+    }
+    class BackgroundTasks {
+        <<Component>>
+        +add_task(func, *args)
+    }
+    class BackgroundTask {
+        <<Function>>
+        run_backtest_in_background()
+    }
+    class BacktestRequest {
+        <<Pydantic Model>>
+        +ticker: str
+        +start_date: str
+        +end_date: str
+    }
+    class ResultResponse {
+        <<Pydantic Model>>
+        +id: int
+        +status: str
+        +sharpe_ratio: float
+    }
+    class Backtester {
+        +ticker: str
+        +data: DataFrame
+        +run_sma_crossover_strategy()
+    }
+    class analytics {
+        <<Module>>
+        +calculate_simple_moving_average()
+        +calculate_sharpe_ratio()
+    }
+    class database_ops {
+        <<Module>>
+        +get_db_engine()
+        +load_data_for_ticker()
+    }
+
+    FastAPI --|> BacktestRequest : uses
+    FastAPI --|> ResultResponse : uses
+    FastAPI ..> BackgroundTasks : delegates to
+    BackgroundTasks ..> BackgroundTask : executes
+    BackgroundTask ..> Backtester : creates & uses
+    BackgroundTask ..> database_ops : updates results
+    Backtester ..> analytics : uses
+    Backtester ..> database_ops : loads data via
+```
